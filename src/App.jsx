@@ -1442,6 +1442,70 @@ function DashboardPage({
     initialEmail || localStorage.getItem("mspUserEmail") || ""
   );
   const [message, setMessage] = useState("");
+  useEffect(() => {
+  if (demoMode || !email) return;
+
+  async function autoLoad() {
+    const clean = email.trim().toLowerCase();
+
+    const { data } = await supabase
+      .from("user_finance_data")
+      .select("payload")
+      .eq("user_email", clean)
+      .single();
+
+    if (!data?.payload) return;
+
+    setIncomes(data.payload.incomes || {});
+    setExpenses(data.payload.expenses || {});
+    setDebts(data.payload.debts || []);
+    setSavings(data.payload.savings || {});
+    setCurrency(data.payload.currencyType || "CRC");
+    setRate(data.payload.exchangeRate || 520);
+    setSelectedMonth(data.payload.selectedMonth || "Ene");
+  }
+
+  autoLoad();
+}, [email, demoMode]);
+
+useEffect(() => {
+  if (demoMode || !email) return;
+
+  const timer = setTimeout(async () => {
+    const clean = email.trim().toLowerCase();
+
+    const payload = {
+      incomes,
+      expenses,
+      debts,
+      savings,
+      currencyType: currency,
+      exchangeRate: rate,
+      selectedMonth,
+    };
+
+    await supabase.from("user_finance_data").upsert(
+      {
+        user_email: clean,
+        payload,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_email" }
+    );
+  }, 1200);
+
+  return () => clearTimeout(timer);
+}, [
+  incomes,
+  expenses,
+  debts,
+  savings,
+  currency,
+  rate,
+  selectedMonth,
+  email,
+  demoMode,
+]);
   const monthIncomes = incomes.filter(
     (x) => monthFromDate(x.date) === selectedMonth
   );
